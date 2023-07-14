@@ -45,13 +45,18 @@ from detectron2.utils.logger import setup_logger
 # MaskFormer
 from mask2former import add_maskformer2_config
 from mask2former_video import (
-    YTVISDatasetMapper,
-    YTVISEvaluator,
     add_maskformer2_video_config,
     build_detection_train_loader,
     build_detection_test_loader,
     get_detection_dataset_dicts,
 )
+from mask2former_vps.config import add_minvis_config
+from mask2former_vps.data.dataset_mappers import MaskFormerPanopticVideoDatasetMapper
+from mask2former_vps.data.datasets.cityscapes_vpq_evaluator import CityscapesVPSEvaluator
+from mask2former_vps.data.datasets.register_cityscapes_vps import register_all_cityscapes_panoptic
+from mask2former_vps.video_mask_former_model import VideoMaskFormer_frame
+
+register_all_cityscapes_panoptic('datasets/cityscapes-vps')
 
 
 class Trainer(DefaultTrainer):
@@ -71,12 +76,12 @@ class Trainer(DefaultTrainer):
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
             os.makedirs(output_folder, exist_ok=True)
 
-        return YTVISEvaluator(dataset_name, cfg, True, output_folder)
+        return CityscapesVPSEvaluator(dataset_name, cfg, True, output_folder)
 
     @classmethod
     def build_train_loader(cls, cfg):
         dataset_name = cfg.DATASETS.TRAIN[0]
-        mapper = YTVISDatasetMapper(cfg, is_train=True)
+        mapper = MaskFormerPanopticVideoDatasetMapper(cfg, is_train=True)
 
         dataset_dict = get_detection_dataset_dicts(
             dataset_name,
@@ -89,7 +94,7 @@ class Trainer(DefaultTrainer):
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
         dataset_name = cfg.DATASETS.TEST[0]
-        mapper = YTVISDatasetMapper(cfg, is_train=False)
+        mapper = MaskFormerPanopticVideoDatasetMapper(cfg, is_train=False)
         return build_detection_test_loader(cfg, dataset_name, mapper=mapper)
 
     @classmethod
@@ -247,6 +252,7 @@ def setup(args):
     add_deeplab_config(cfg)
     add_maskformer2_config(cfg)
     add_maskformer2_video_config(cfg)
+    add_minvis_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
